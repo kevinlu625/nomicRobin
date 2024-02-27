@@ -1,0 +1,320 @@
+<style>
+  .ttooltip {
+    z-index: 0;
+  }
+
+  dl {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    dt {
+      font-weight: bold;
+      color: rgb(128, 19, 0);
+    }
+
+    dt::after {
+      content: ':';
+    }
+
+    dd {
+      margin: 0 0 0 10px;
+      padding: 0 0 0.5em 0;
+      width: 180px;
+    }
+
+    #date {
+      width: 100%;
+    }
+</style>
+
+<body>
+  <h1>Robin - Provider Data</h1>
+  <div id="datestring"></div>
+  <input id="date" title="date selector" type="range" min="1" max="9" />
+  <div id="deepscatter"></div>
+  <div id="controls" style="z-index: 99; position: fixed">
+    <input type="range" min="0" max=".5" step=".01" id="jitter" value=".05" />
+    <button id="flip">Change encoding</button>
+    <button id="html">Change tooltip HTML</button>
+    <button id="prvdrBreakdown">Provider Type Breakdown</button>
+    <button id="totPatientTotClaims">Total Patients vs Total Claims</button>
+    <button id="totSupvsSubCharge">Total Suppliers vs Submitted Charges</button>
+    <button id="totCodeSubCharge">Total Codes vs Submitted Charges</button>
+    <button id="totSrvSubCharge">Tot_Suplr_Srvcs vs Submitted Charges</button>
+    <pre id="ident"></pre>
+  </div>
+</body>
+
+<head>
+  <style>
+    dt {
+      float: left;
+      clear: left;
+      width: 90px;
+      font-weight: bold;
+      color: rgb(128, 19, 0);
+    }
+
+    dt::after {
+      content: ':';
+    }
+
+    dd {
+      margin: 0 0 0 80px;
+      padding: 0 0 0.5em 0;
+      width: 180px;
+    }
+  </style>
+</head>
+
+<script type="module">
+  import Scatterplot from './src/deepscatter';
+  import { select } from 'd3-selection';
+  window.select = select; // For the click function below.
+  const prefs = {
+    source_url: '/tiles',
+    max_points: 1000000, // a full cap.
+    alpha: 35, // Target saturation for the full page.
+    zoom_balance: 0.22, // Rate at which points increase size. https://observablehq.com/@bmschmidt/zoom-strategies-for-huge-scatterplots-with-three-js
+    point_size: 4, // Default point size before application of size scaling
+    background_color: '#EEEDDE',
+    click_function:
+      "select('#ident').html(JSON.stringify(datum, undefined, 2))",
+    encoding: {
+      color: {
+        field: 'fraud',
+        domain: [0, 1],
+        range: [
+          'black',
+          'red'
+        ],
+      },
+      x: {
+        field: 'x',
+        transform: 'literal',
+      },
+      y: {
+        field: 'y',
+        transform: 'literal',
+      },
+    },
+  };
+
+  const scatterplot = new Scatterplot('#deepscatter');
+  scatterplot.plotAPI(prefs).then((d) => scatterplot.plotAPI(prefs));
+  window.plot = scatterplot; // For debugging
+  // Simple animation demonstration.
+
+  //list of ids 1 - 100000
+  var ids_1 = [];
+  var ids_2 = [];
+  for (var i = 1; i < 500000; i++) {
+    ids_1.push(i.toString());
+  }
+
+  //list of ids 1 - 20000 increment by 2
+  for (var i = 1; i < 20000; i++) {
+    ids_2.push(i.toString());
+  }
+
+  // In practice, you might transform an external annotations layer using this
+  scatterplot.on_zoom = (transform) => console.log('zoomed:', transform);
+
+  
+  let cycle = 0;
+  select('#jitter').on('change', (event) => {
+    scatterplot.plotAPI({
+      encoding: {
+        jitter_radius: {
+          method: 'uniform',
+          constant: +event.target.value,
+        },
+      },
+    });
+  });
+  let weird = false;
+  select('#html').on('click', () => {
+    scatterplot.tooltip_html = (datum) => {
+      return `This is point number <span style="color:blue">${datum.ix}</span>`;
+    };
+  });
+  const positions = [
+    {
+      field: 'x',
+      transform: 'literal',
+    },
+    {
+      field: 'y',
+      transform: 'literal',
+    },
+  ];
+  select('#flip').on('click', () => {
+    cycle += 1;
+    const new_coding = {
+      encoding: {
+        x: positions[cycle % positions.length],
+        y: positions[(cycle + 1) % positions.length],
+      },
+    };
+    scatterplot.plotAPI(new_coding);
+  });
+  select('#date').on('input', function (a, b) {
+      console.log(this, a, b);
+      document.getElementById('datestring').innerHTML =
+        2012 + this.valueAsNumber;
+      scatterplot
+        .plotAPI({
+          alpha: 3.5,
+          max_points: 1000,
+          point_size: 5,
+          duration: 0.1,
+          encoding: {
+            filter: {
+              field: 'Year',
+              op: 'within',
+              a: 2013,
+              b: this.valueAsNumber,
+            },
+          },
+        })
+        .then(redo_scale);
+    });
+    select('#prvdrBreakdown').on('click', () => {
+    cycle += 1;
+    const new_coding = {
+      encoding: {
+        color: {
+        field: 'Rfrg_Prvdr_Type',
+        // domain: [0, 1],
+        range: 'category10'
+        }
+      },
+    };
+    scatterplot.plotAPI(new_coding);
+  });
+  select('#totPatientTotClaims').on('click', () => {
+    cycle += 1;
+    const new_coding = {
+      encoding: {
+        color: {
+        field: 'fraud',
+        domain: [0, 1],
+        range: ['black', 'red']
+        },
+        x: {
+          field: 'x',
+          transform: 'literal',
+        },
+        y: {
+          field: 'y',
+          transform: 'literal',
+        },
+      },
+    };
+    scatterplot.plotAPI(new_coding);
+  });
+  select('#totSupvsSubCharge').on('click', () => {
+    cycle += 1;
+    const new_coding = {
+      encoding: {
+        color: {
+        field: 'fraud',
+        domain: [0, 1],
+        range: ['black', 'red']
+        },
+        x: {
+          field: 'Tot_Suplrs',
+          transform: 'literal',
+        },
+        y: {
+          field: 'Suplr_Sbmtd_Chrgs',
+          transform: 'literal',
+        },
+      },
+    };
+    scatterplot.plotAPI(new_coding);
+  });
+  select('#totCodeSubCharge').on('click', () => {
+    cycle += 1;
+    const new_coding = {
+      encoding: {
+        color: {
+        field: 'fraud',
+        domain: [0, 1],
+        range: ['black', 'red']
+        },
+        x: {
+          field: 'Tot_Suplr_HCPCS_Cds',
+          transform: 'literal',
+        },
+        y: {
+          field: 'Suplr_Sbmtd_Chrgs',
+          transform: 'literal',
+        },
+      },
+    };
+    scatterplot.plotAPI(new_coding);
+  });
+  select('#totSrvSubCharge').on('click', () => {
+    cycle += 1;
+    const new_coding = {
+      encoding: {
+        color: {
+        field: 'fraud',
+        domain: [0, 1],
+        range: ['black', 'red']
+        },
+        x: {
+          field: 'Tot_Suplr_Srvcs',
+          transform: 'literal',
+        },
+        y: {
+          field: 'Suplr_Sbmtd_Chrgs',
+          transform: 'literal',
+        },
+      },
+    };
+    scatterplot.plotAPI(new_coding);
+  });
+
+</script>
+
+<style>
+  #deepscatter {
+    position: relative;
+  }
+
+  .overlay {
+    position: absolute;
+    top: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+  }
+
+  #left-overlay {
+    left: 0;
+  }
+
+  #color-legend {
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: right;
+    justify-content: right;
+  }
+
+  .legend-div {
+    margin: 5px;
+    padding: 5px 15px;
+  }
+
+  button {
+    margin: 0.1em;
+  }
+
+  button:hover {
+    background-color: #eee;
+  }
+</style>
