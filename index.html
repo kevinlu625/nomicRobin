@@ -3,6 +3,14 @@
     z-index: 0;
   }
 
+  #color-legend {
+    height: 400px;
+    overflow-y: scroll;
+    position: absolute;
+    right: 20px;
+    top: 110px
+  }
+
   dl {
       display: flex;
       flex-direction: row;
@@ -45,6 +53,7 @@
     <button id="totSrvSubCharge">Tot_Suplr_Srvcs vs Submitted Charges</button>
     <pre id="ident"></pre>
   </div>
+  <div id="color-legend" class="overlay"></div>
 </body>
 
 <head>
@@ -65,6 +74,11 @@
       margin: 0 0 0 80px;
       padding: 0 0 0.5em 0;
       width: 180px;
+    }
+
+    #controls {
+      display: flex;
+      flex-direction: column;
     }
   </style>
 </head>
@@ -101,6 +115,19 @@
       },
     },
   };
+
+  function redo_scale() {
+    const scale = scatterplot._renderer.aes.store.color.current.scale;
+    const domain = scale.domain();
+    const range = scale.range();
+    select('#color-legend')
+      .selectAll('div')
+      .data(domain)
+      .join('div')
+      .attr('class', 'legend-div')
+      .text((d) => d)
+      .style('background-color', (d) => scale(d));
+  }
 
   const scatterplot = new Scatterplot('#deepscatter');
   scatterplot.plotAPI(prefs).then((d) => scatterplot.plotAPI(prefs));
@@ -192,7 +219,7 @@
         }
       },
     };
-    scatterplot.plotAPI(new_coding);
+    scatterplot.plotAPI(new_coding).then(redo_scale);;
   });
   select('#totPatientTotClaims').on('click', () => {
     cycle += 1;
@@ -213,7 +240,7 @@
         },
       },
     };
-    scatterplot.plotAPI(new_coding);
+    scatterplot.plotAPI(new_coding).then(redo_scale);;
   });
   select('#totSupvsSubCharge').on('click', () => {
     cycle += 1;
@@ -234,7 +261,7 @@
         },
       },
     };
-    scatterplot.plotAPI(new_coding);
+    scatterplot.plotAPI(new_coding).then(redo_scale);
   });
   select('#totCodeSubCharge').on('click', () => {
     cycle += 1;
@@ -255,7 +282,7 @@
         },
       },
     };
-    scatterplot.plotAPI(new_coding);
+    scatterplot.plotAPI(new_coding).then(redo_scale);;
   });
   select('#totSrvSubCharge').on('click', () => {
     cycle += 1;
@@ -276,7 +303,7 @@
         },
       },
     };
-    scatterplot.plotAPI(new_coding);
+    scatterplot.plotAPI(new_coding).then(redo_scale);;
   });
 
 </script>
